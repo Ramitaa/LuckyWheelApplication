@@ -60,31 +60,31 @@ namespace LuckyDrawApplication.Controllers
                 {
                     if (projectView.PrizeData != null)
                     {
-                        bool created = CreateNewProject(projectView);
+                        Tuple<bool, string> results = CreateNewProject(projectView);
 
-                        if (created)
+                        if (results.Item1)
                             return RedirectToAction("Index", "Project");
                         else
                         {
-                            ViewBag.ErrorMessage = "Creation of project failed due to database problem!";
+                            ModelState.AddModelError(string.Empty, results.Item2);
                             return View();
                         }
                     }
                     else
                     {
-                        ViewBag.ErrorMessage = "Lucky draw prizes data file is missing!";
+                        ModelState.AddModelError(string.Empty, "Lucky draw prizes data file is missing!");
                         return View();
                     }
                 }
                 else
                 {
-                    ViewBag.ErrorMessage = "Creation of project failed. Invalid field columns!";
+                    ModelState.AddModelError(string.Empty, "Creation of project failed. Invalid field columns!");
                     return View();
                 }
             }
-            catch
+            catch (Exception e)
             {
-                ViewBag.ErrorMessage = "Creation of project failed.";
+                ModelState.AddModelError(string.Empty, "Creation of project failed. Database error!");
                 return View();
             }
         }
@@ -116,30 +116,39 @@ namespace LuckyDrawApplication.Controllers
                 return RedirectToAction("AdminIndex", "Login");
 
             ViewBag.Name = a_user.Name;
+            ViewBag.Events = LoginController.GetEventList();
 
             try
             {
                 if (ModelState.IsValid)
                 {
-                    bool edited = EditExistingProject(projectView);
+                    if (projectView.PrizeData != null)
+                    {
+                        Tuple<bool, string> results = EditExistingProject(projectView);
 
-                    if (edited)
-                        return RedirectToAction("Index", "Project");
+                        if (results.Item1)
+                            return RedirectToAction("Index", "Project");
+                        else
+                        {
+                            ModelState.AddModelError(string.Empty, results.Item2);
+                            return View();
+                        }
+                    }
                     else
                     {
-                        ViewBag.ErrorMessage = "Modification of project failed due to database problem!";
+                        ModelState.AddModelError(string.Empty, "Lucky draw prizes data file is missing!");
                         return View();
                     }
                 }
                 else
                 {
-                    ViewBag.ErrorMessage = "Modification of project failed. Invalid field columns!";
+                    ModelState.AddModelError(string.Empty, "Edition of project failed. Invalid field columns!");
                     return View();
                 }
             }
-            catch
+            catch (Exception e)
             {
-                ViewBag.ErrorMessage = "Modification of project failed.";
+                ModelState.AddModelError(string.Empty, "Edition of project failed. Database error!");
                 return View();
             }
         }
@@ -240,10 +249,8 @@ namespace LuckyDrawApplication.Controllers
 
         //Create new project
         [NonAction]
-        public bool CreateNewProject(Models.ProjectView projectView)
+        public Tuple<bool, string> CreateNewProject(Models.ProjectView projectView)
         {
-            //Reading CSV file and passing it into an array
-            StreamReader csvreader = new StreamReader(projectView.PrizeData.InputStream);
             int last_inserted_id = 0;
 
             try
@@ -274,21 +281,21 @@ namespace LuckyDrawApplication.Controllers
                     }
                 }
 
-                return UploadLuckyDrawPrizeData(last_inserted_id, projectView.PrizeData);
+                return UploadLuckyDrawPrizeData(last_inserted_id, projectView);
             }
             catch (SqlException e)
             {
                 Console.WriteLine(e.ToString());
-                return false;
+                return new Tuple<bool, string>(false, "Error! Unable to create basic project");
             }
         }
 
         [NonAction]
-        public bool UploadLuckyDrawPrizeData(int project_id, HttpPostedFileBase file)
+        public Tuple<bool, string> UploadLuckyDrawPrizeData(int project_id, Models.ProjectView pv)
         {
             try
             {
-                StreamReader csvreader = new StreamReader(file.InputStream);
+                StreamReader csvreader = new StreamReader(pv.PrizeData.InputStream);
 
                 SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
                 builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
@@ -303,9 +310,9 @@ namespace LuckyDrawApplication.Controllers
 
                     while (!csvreader.EndOfStream)
                     {
-                        var line = csvreader.ReadLine();
-                        var values = line.Split(';');
-                        sb.Append("(" + project_id + ", " + values[0] + ", " + values[1] + "),");
+                        string line = csvreader.ReadLine();
+                        string[] values = line.Split(',');
+                        sb.Append("(" + project_id + ", " + values[0] + ", " + values[1] + ") ,");
                     }
 
                     String sql = sb.ToString();
@@ -318,12 +325,13 @@ namespace LuckyDrawApplication.Controllers
                     }
                 }
 
-                return true;
+                return new Tuple<bool, string>(true, "");
             }
-            catch (SqlException e)
+
+            catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
-                return false;
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!");
             }
         }
 
@@ -375,7 +383,7 @@ namespace LuckyDrawApplication.Controllers
 
         //Edit existing project
         [NonAction]
-        public bool EditExistingProject(Models.ProjectView projectView)
+        public Tuple<bool, string> EditExistingProject(Models.ProjectView projectView)
         {
             try
             {
@@ -398,12 +406,87 @@ namespace LuckyDrawApplication.Controllers
                     }
                 }
 
-                return true;
+                return UploadEditedLuckyDrawPrizeData(projectView.ProjectID, projectView);
             }
             catch (SqlException e)
             {
                 Console.WriteLine(e.ToString());
-                return false;
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!");
+            }
+        }
+
+        [NonAction]
+        public Tuple<bool, string> UploadEditedLuckyDrawPrizeData(int project_id, Models.ProjectView pv)
+        {
+            try
+            {
+                StreamReader csvreader = new StreamReader(pv.PrizeData.InputStream);
+
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("DELETE FROM luckydraw WHERE ProjectID = " + project_id);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+            }
+
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!");
+            }
+
+            try
+            {
+                StreamReader csvreader = new StreamReader(pv.PrizeData.InputStream);
+
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("INSERT INTO luckydraw(ProjectID, OrderNo, Prize) VALUES ");
+
+                    while (!csvreader.EndOfStream)
+                    {
+                        string line = csvreader.ReadLine();
+                        string[] values = line.Split(',');
+                        sb.Append("(" + project_id + ", " + values[0] + ", " + values[1] + ") ,");
+                    }
+
+                    String sql = sb.ToString();
+                    sql = sql.Substring(0, sql.Length - 1).ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+
+                return new Tuple<bool, string>(true, "");
+            }
+
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!");
             }
         }
 

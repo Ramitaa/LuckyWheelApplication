@@ -38,10 +38,9 @@
                     <div class="container-fluid">
 
                         <div class="callout callout-warning">
-                            <h4>Attention! Prevent data corruption by following these steps!</h4>
-                            <br />
-                            <p><h4>A) Prize Category Field must be correct to prevent data corruption.</h4></p>
-                            <p><h3>Eg. Prize Category Field: <b>8888,5888,3888</b></h3></p>
+                            <h4 style="margin-bottom:20px;">Attention! Prevent data corruption by following these steps!</h4>
+                            <p><h4>A) Prize Category Field</h4></p>
+                            <p><h5>Eg. Prize Category Field: <b>8888,5888,3888</b></h5></p>
 
                             <ol>
                                 <li>The field must not contain any extra spaces.</li>
@@ -50,72 +49,74 @@
                                 <li>The number of categories in the field and CSV file MUST MATCH.</li>
                             </ol>
 
-                            <br /><br />
+                            <br />
 
-                            <p><h4>B) Lucky Draw Data File must be correct to prevent data corruption.</h4></p>
-                            <p><h3>Eg. </h3></p>
-                            <p>&emsp;1  1</p>
-                            <p>&emsp;2  3</p>
-                            <p>&emsp;3  1</p>
-                            <p>&emsp;4  1</p>
-                            <p>&emsp;5  2</p>
+                            <p><h4>B) Prize Data File </h4></p>
+                            <p><h5>Eg. <a target="_blank" href="https://drive.google.com/open?id=1WeSY78ADf8Uz3mQXrQv7Y1XyxadaoaGG">Download Sample</a></h5></p>
 
                             <ol>
-                                <li>First column: Order Number, Second column: Prize Code (Prize Code always start from 1. In this example, 1 represents 8888, 2 represents 5888, 3 represents 3888.</li>
-                                <li>The file must not contain column names.</li>
-                                <li>Both order number and prize code must only be integers.</li>
+                                <li>First column: Order Number, Second column: Prize Code</li>
+                                <li>Prize Code start from 1. In this example, 1 represents 8888, 2 represents 5888, 3 represents 3888.</li>
+                                <li>The file must only contain 1 sheet with 2 columns.</li>
                                 <li>The number of categories in the field and CSV file MUST MATCH.</li>
-                                <li>The file must only contain 1 sheet.</li>
-                                <li>The file saved MUST BE IN CSV FORMAT. Please refer to the attachment below.</li>
+                                <li>The file saved MUST BE IN CSV FORMAT. Please refer to the sample link above.</li>
                             </ol>
 
                         </div>
 
-                        @using (Html.BeginForm("Create", "Project", FormMethod.Post, new { enctype = "multipart/form-data" } ))
+                        @using (Html.BeginForm("Create", "Project", FormMethod.Post, new { enctype = "multipart/form-data" }))
                         {
                             @Html.AntiForgeryToken()
 
-                    <div class="form-horizontal">
+                            <div class="form-horizontal">
 
-                        @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+                                @Html.ValidationSummary(true, "", new { @class = "text-danger" })
 
-                        <div class="form-group">
-                            @Html.LabelFor(model => model.EventID, htmlAttributes: new { @class = "control-label col-md-2" })
-                            <div class="col-md-4">
-                                @Html.DropDownListFor(model => model.EventID, (IEnumerable<SelectListItem>)ViewBag.Events, new { @class = "form-control" })
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.EventID, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.DropDownListFor(model => model.EventID, (IEnumerable<SelectListItem>)ViewBag.Events, new { @class = "form-control" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.ProjectName, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.EditorFor(model => model.ProjectName, new { htmlAttributes = new { @class = "form-control" } })
+                                        @Html.ValidationMessageFor(model => model.ProjectName, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.PrizeCategory, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.EditorFor(model => model.PrizeCategory, new { htmlAttributes = new { @class = "form-control" } })
+                                        @Html.ValidationMessageFor(model => model.PrizeCategory, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.PrizeData, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        <input type="file" class="custom-file-input" id="PrizeData" name="PrizeData">
+                                        @Html.ValidationMessageFor(model => model.PrizeData, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.PrizeData, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        <input type="file" class="custom-file-input" id="PrizeData" name="PrizeData">
+                                        @Html.ValidationMessageFor(model => model.PrizeData, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-actions no-color pull-right">
+                                    <a href="~/Project/Index" class="btn btn-primary">Back</a>
+                                    <input type="submit" value="Create" class="btn btn-success" />
+                                </div>
+
                             </div>
-                        </div>
-
-                        <div class="form-group">
-                            @Html.LabelFor(model => model.ProjectName, htmlAttributes: new { @class = "control-label col-md-2" })
-                            <div class="col-md-4">
-                                @Html.EditorFor(model => model.ProjectName, new { htmlAttributes = new { @class = "form-control" } })
-                                @Html.ValidationMessageFor(model => model.ProjectName, "", new { @class = "text-danger" })
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            @Html.LabelFor(model => model.PrizeCategory, htmlAttributes: new { @class = "control-label col-md-2" })
-                            <div class="col-md-4">
-                                @Html.EditorFor(model => model.PrizeCategory, new { htmlAttributes = new { @class = "form-control" } })
-                                @Html.ValidationMessageFor(model => model.PrizeCategory, "", new { @class = "text-danger" })
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            @Html.LabelFor(model => model.PrizeData, htmlAttributes: new { @class = "control-label col-md-2" })
-                            <div class="col-md-4">
-                                <input type="file" class="custom-file-input" id="PrizeData" name="PrizeData">
-                                @Html.ValidationMessageFor(model => model.PrizeData, "", new { @class = "text-danger" })
-                            </div>
-                        </div>
-
-                        <div class="form-actions no-color pull-right">
-                            <a href="~/Project/Index" class="btn btn-primary">Back</a>
-                            <input type="submit" value="Create" class="btn btn-success" />
-                        </div>
-
-                    </div>
                         }
                     </div>
                 </div>
