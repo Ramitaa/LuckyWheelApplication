@@ -10,6 +10,7 @@ namespace LuckyDrawApplication.Models
     {
         [Required]
         [DataType(DataType.EmailAddress)]
+        [MaxLength(100, ErrorMessage = "Maximum 100 characters")]
         [Display(Name = "Email Address")]
         public String EmailAddress { get; set; }
 

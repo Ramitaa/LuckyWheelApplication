@@ -33,10 +33,7 @@ namespace LuckyDrawApplication.Models
         [Display(Name = "Salt")]
         public String Salt { get; set; }
 
-        [Required]
         [Display(Name = "Event ID")]
         public int EventID { get; set; }
-
-
     }
 }

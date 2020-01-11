@@ -1,12 +1,12 @@
-﻿using LuckyDrawApplication.Models;
-using MySql.Data.MySqlClient;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
+using System.Text;
 using System.Web;
 using System.Web.Mvc;
 
@@ -18,10 +18,6 @@ namespace LuckyDrawApplication.Controllers
         [HttpGet]
         public ActionResult Index()
         {
-            string salt = getSalt();
-            ViewBag.Hash = createPasswordHash("jjFeKvpPvLDN5Za7LZvdwKpWAA9i4tR67YD3s4nR5Fd7feSKZp66xsjY4seKwGUB", "101luckydraw");
-            ViewBag.Salt = salt;
-
             return View();
         }
 
@@ -40,16 +36,32 @@ namespace LuckyDrawApplication.Controllers
                 if (result.Item1)
                 {
                     Session["event"] = luckydrawevent;
-                    return RedirectToAction("Index", "Home");
+                    return Json(new
+                    {
+                        success = true,
+                        urllink = Url.Action("CreateUserAndDraw", "Home"),
+                        message = "Login successful!"
+                    }, JsonRequestBehavior.AllowGet);
 
                 }
-                ViewBag.ErrorMessage = "Authentication failed!";
-                return View();
+                else
+                {
+                    return Json(new
+                    {
+                        success = false,
+                        message = "Authentication failed!"
+                    }, JsonRequestBehavior.AllowGet);
+                }
             }
-
-            ViewBag.ErrorMessage = "Authentication failed!";
-            return View();
-
+            else
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Authentication failed!"
+                }, JsonRequestBehavior.AllowGet);
+            }
+            
         }
 
         public ActionResult LogOut()
@@ -69,39 +81,49 @@ namespace LuckyDrawApplication.Controllers
         [NonAction]
         public static Tuple<bool, int, string> DecryptPassword(string code, string password)
         {
-            Debug.WriteLine("IM IN HERE!");
             bool isPasswordMatch = false;
             int eventID = 0;
             string eventLocation = "";
 
-            MySqlConnection cn = new MySqlConnection(@"DataSource=103.6.199.135:3306;Initial Catalog=com12348_;User Id=luckywheel;Password=luckywheelrocks123@");
-            cn.Open();
-            MySqlCommand cmd = cn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = String.Format("SELECT * FROM event WHERE EventCode = @code");
-            cmd.Parameters.Add("@code", MySqlDbType.VarChar).Value = code;
-
-            Debug.WriteLine("Code: " + code);
-
-            MySqlDataReader rd = cmd.ExecuteReader();
-
-            while (rd.Read())
+            try
             {
-                
-                var hash = createPasswordHash(rd["EventSalt"].ToString(), password);
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
 
-                if (hash.Equals(rd["EventPassword"].ToString()))
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
-                    eventID = Convert.ToInt32(rd["EventID"]);
-                    eventLocation = rd["EventLocation"].ToString();
-                    isPasswordMatch = true;
-                    break;
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT * FROM event WHERE EventCode = " + code);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                var hash = createPasswordHash(rd["EventSalt"].ToString(), password);
+
+                                if (hash.Equals(rd["EventPassword"].ToString()))
+                                {
+                                    eventID = Convert.ToInt32(rd["EventID"]);
+                                    eventLocation = rd["EventLocation"].ToString();
+                                    isPasswordMatch = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
-
-            rd.Close();
-            cmd.Dispose();
-            cn.Close();
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
 
             return new Tuple<bool, int, string>(isPasswordMatch, eventID, eventLocation);
         }
@@ -109,7 +131,6 @@ namespace LuckyDrawApplication.Controllers
         [NonAction]
         public static string createPasswordHash(string salt_c, string password)
         {
-
             int PASSWORD_BCRYPT_COST = 13;
             string PASSWORD_SALT = salt_c;
             string salt = "$2a$" + PASSWORD_BCRYPT_COST + "$" + PASSWORD_SALT;
@@ -123,7 +144,6 @@ namespace LuckyDrawApplication.Controllers
         public static string getSalt()
         {
             Random random = new Random();
-
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
             return new string(Enumerable.Repeat(chars, 64).Select(s => s[random.Next(s.Length)]).ToArray());
         }
@@ -132,8 +152,8 @@ namespace LuckyDrawApplication.Controllers
         //----------------------------------------------------------------------------------------------------------------------------------------------
         //                                                              ADMIN CODE
         //----------------------------------------------------------------------------------------------------------------------------------------------
-        
-            // GET: Login
+
+        // GET: Login
         [HttpGet]
         public ActionResult AdminIndex()
         {
@@ -162,11 +182,15 @@ namespace LuckyDrawApplication.Controllers
                 }
                 else
                 {
-                    ViewBag.ErrorMessage = "No such email address is registered under LuckyWheel.";
+                    ViewBag.ErrorMessage = "No such email address is registered under LuckyWheel." + updateToken.Item2;
                     return View();
                 }
             }
-            return View();
+            else
+            {
+                ViewBag.ErrorMessage = "Please make sure all fields are valid.";
+                return View();
+            }
         }
 
         [HttpGet]
@@ -216,18 +240,26 @@ namespace LuckyDrawApplication.Controllers
                 if (result.Item1)
                 {
                     Models.Event luckydrawevent = GetEventDetails(admin.EventID);
-                   
+
                     Session["admin"] = admin;
                     Session["event"] = luckydrawevent;
 
                     return RedirectToAction("Index", "Admin");
                 }
-                ViewBag.ErrorMessage = "Authentication failed!";
+                else
+                {
+                    ViewBag.Events = GetEventList();
+                    ViewBag.ErrorMessage = "Authentication failed!";
+                    return View();
+                }
+
+            }
+            else
+            {
+                ViewBag.Events = GetEventList();
+                ViewBag.ErrorMessage = "Authentication failed! Please make sure all fields are valid.";
                 return View();
             }
-
-            ViewBag.ErrorMessage = "Authentication failed!";
-            return View();
 
         }
 
@@ -238,60 +270,86 @@ namespace LuckyDrawApplication.Controllers
             int UserID = 0;
             string name = "";
 
-            MySqlConnection cn = new MySqlConnection(@"DataSource=103.6.199.135:3306;Initial Catalog=com12348_;User Id=luckywheel;Password=luckywheelrocks123@");
-            cn.Open();
-            MySqlCommand cmd = cn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = String.Format("SELECT * FROM adminlogin WHERE emailAddress = @emailAddress");
-            cmd.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = emailAddress;
-
-            MySqlDataReader rd = cmd.ExecuteReader();
-
-            while (rd.Read())
+            try
             {
-                var hash = createPasswordHash(rd["salt"].ToString(), password);
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
 
-                if (hash.Equals(rd["passwordHash"].ToString()))
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
-                    UserID = Convert.ToInt32(rd["userID"]);
-                    name = rd["name"].ToString();
-                    isPasswordMatch = true;
-                    break;
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT * FROM adminlogin WHERE emailAddress = '" + emailAddress + "'");
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                var hash = createPasswordHash(rd["salt"].ToString(), password);
+
+                                if (hash.Equals(rd["passwordHash"].ToString()))
+                                {
+                                    UserID = Convert.ToInt32(rd["userID"]);
+                                    name = rd["adminname"].ToString();
+                                    isPasswordMatch = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
+            } catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
             }
 
-            rd.Close();
-            cmd.Dispose();
-            cn.Close();
-
             return new Tuple<bool, int, string>(isPasswordMatch, UserID, name);
-
         }
 
         [NonAction]
         public static Models.Event GetEventDetails(int eventID)
         {
             Models.Event luckydrawevent = new Models.Event();
- 
-            MySqlConnection cn = new MySqlConnection(@"DataSource=103.6.199.135:3306;Initial Catalog=com12348_;User Id=luckywheel;Password=luckywheelrocks123@");
-            cn.Open();
-            MySqlCommand cmd = cn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = String.Format("SELECT * FROM event WHERE EventID = @id");
-            cmd.Parameters.Add("@id", MySqlDbType.Int32).Value = eventID;
 
-            MySqlDataReader rd = cmd.ExecuteReader();
-
-            while (rd.Read())
+            try
             {
-                luckydrawevent.EventID = Convert.ToInt32(rd["EventID"]);
-                luckydrawevent.EventCode = (rd["EventCode"]).ToString();
-                luckydrawevent.EventLocation = rd["EventLocation"].ToString();
-            }
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
 
-            rd.Close();
-            cmd.Dispose();
-            cn.Close();
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT * FROM event WHERE EventID = " + eventID);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                luckydrawevent.EventID = Convert.ToInt32(rd["EventID"]);
+                                luckydrawevent.EventCode = (rd["EventCode"]).ToString();
+                                luckydrawevent.EventLocation = rd["EventLocation"].ToString();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
 
             return luckydrawevent;
         }
@@ -299,17 +357,29 @@ namespace LuckyDrawApplication.Controllers
         [NonAction]
         public static void SendEmail(string Subject, string Body, string To)
         {
-            System.Net.Mail.MailMessage mail = new System.Net.Mail.MailMessage();
-            mail.To.Add(To);
-            mail.From = new MailAddress("ramitaa.loganathan98@gmail.com");
-            mail.Subject = Subject;
-            mail.Body = Body;
-            SmtpClient smtp = new SmtpClient();
-            smtp.Host = "smtp.gmail.com";
-            smtp.Port = 587;
-            smtp.Credentials = new NetworkCredential("ramitaa.loganathan98@gmail.com", "RDJ123Forever@");
-            smtp.EnableSsl = true;
-            smtp.Send(mail);
+            try
+            {
+                using(MailMessage mail = new MailMessage())
+                {
+                    mail.From = new MailAddress("ramitaa.loganathan98@gmail.com");
+                    mail.To.Add(To);
+                    mail.Subject = Subject;
+                    mail.Body = Body;
+                    mail.IsBodyHtml = true;
+
+                    using(SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587))
+                    {
+                        smtp.Credentials = new NetworkCredential("ramitaa.loganathan98@gmail.com", "RDJ123Forever@");
+                        smtp.EnableSsl = true;
+                        smtp.Send(mail);
+                    }
+
+                }
+            } 
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
         }
 
         [NonAction]
@@ -318,75 +388,138 @@ namespace LuckyDrawApplication.Controllers
             bool userExists = false, emailExists = false;
             String token = getSalt();
 
-            MySqlConnection cn = new MySqlConnection(@"DataSource=103.6.199.135:3306;Initial Catalog=com12348_;User Id=luckywheel;Password=luckywheelrocks123@");
-            cn.Open();
-
-            MySqlCommand cmd = cn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = String.Format("SELECT COUNT(emailAddress) AS count FROM adminlogin WHERE emailAddress = @emailAddress");
-            cmd.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = emailAddress;
-
-            MySqlDataReader rd = cmd.ExecuteReader();
-
-            while (rd.Read())
+            try
             {
-                if (Convert.ToInt32(rd["count"].ToString()) == 0)
-                    userExists = false;
-                else
-                    userExists = true;
-            }
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
 
-            rd.Close();
-            cmd.Dispose();
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT COUNT(emailAddress) AS count FROM adminlogin WHERE emailAddress = '" + emailAddress + "'");
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            { 
+                                if (Convert.ToInt32(rd["count"].ToString()) == 0)
+                                    userExists = false;
+                                else
+                                    userExists = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
 
             if (userExists)
             {
-                MySqlCommand cmd1 = cn.CreateCommand();
-                cmd1.CommandType = CommandType.Text;
-                cmd1.CommandText = String.Format("SELECT COUNT(emailAddress) AS count FROM adminforgotpassword WHERE emailAddress = @emailAddress");
-                cmd1.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = emailAddress;
-
-                MySqlDataReader rd1 = cmd1.ExecuteReader();
-
-                while (rd1.Read())
+                try
                 {
-                    if (Convert.ToInt32(rd1["count"].ToString()) == 0)
-                        emailExists = false;
-                    else
-                        emailExists = true;
-                }
+                    SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                    builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                    builder.UserID = "sqladmin";
+                    builder.Password = "luckywheel123@";
+                    builder.InitialCatalog = "luckywheeldb";
 
-                rd1.Close();
-                cmd1.Dispose();
+                    using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        sb.Append("SELECT COUNT(emailAddress) AS count FROM adminforgotpassword WHERE emailAddress = '" + emailAddress + "'");
+                        String sql = sb.ToString();
+
+                        using (SqlCommand command = new SqlCommand(sql, connection))
+                        {
+                            connection.Open();
+                            using (SqlDataReader rd = command.ExecuteReader())
+                            {
+                                while (rd.Read())
+                                {
+                                    if (Convert.ToInt32(rd["count"].ToString()) == 0)
+                                        emailExists = false;
+                                    else
+                                        emailExists = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
 
                 if (emailExists)
                 {
-                    token = getSalt(); ;
+                    token = getSalt();
 
-                    MySqlCommand cmd2 = cn.CreateCommand();
-                    cmd2.CommandType = CommandType.Text;
-                    cmd2.CommandText = String.Format("UPDATE adminforgotpassword SET token = @token WHERE emailAddress = @emailAddress");
-                    cmd2.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = emailAddress;
-                    cmd2.Parameters.Add("@token", MySqlDbType.VarChar).Value = token;
-                    MySqlDataReader rd2 = cmd2.ExecuteReader();
-                    rd2.Close();
-                    cmd2.Dispose();
+                    try
+                    {
+                        SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                        builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                        builder.UserID = "sqladmin";
+                        builder.Password = "luckywheel123@";
+                        builder.InitialCatalog = "luckywheeldb";
+
+                        using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                        {
+                            StringBuilder sb = new StringBuilder();
+                            sb.Append("UPDATE adminforgotpassword SET token = '" + token + "' WHERE emailAddress = '" + emailAddress + "'");
+                            String sql = sb.ToString();
+
+                            using (SqlCommand command = new SqlCommand(sql, connection))
+                            {
+                                connection.Open();
+                                SqlDataReader rd = command.ExecuteReader();
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
                 }
                 else
                 {
-                    token = getSalt(); ;
+                    token = getSalt();
 
-                    MySqlCommand cmd3 = cn.CreateCommand();
-                    cmd3.CommandType = CommandType.Text;
-                    cmd3.CommandText = String.Format("INSERT INTO adminforgotpassword(emailAddress, token) VALUES(@emailAddress, @token)");
-                    cmd3.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = emailAddress;
-                    cmd3.Parameters.Add("@token", MySqlDbType.VarChar).Value = token;
-                    MySqlDataReader rd3 = cmd3.ExecuteReader();
-                    rd3.Close();
-                    cmd3.Dispose();
+                    try
+                    {
+                        SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                        builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                        builder.UserID = "sqladmin";
+                        builder.Password = "luckywheel123@";
+                        builder.InitialCatalog = "luckywheeldb";
+
+                        using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                        {
+                            StringBuilder sb = new StringBuilder();
+                            sb.Append("INSERT INTO adminforgotpassword(emailAddress, token) VALUES('"+ emailAddress + "', '" + token + "')");
+                            String sql = sb.ToString();
+
+                            using (SqlCommand command = new SqlCommand(sql, connection))
+                            {
+                                connection.Open();
+                                SqlDataReader rd = command.ExecuteReader();
+                            }
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
                 }
-
-                cn.Close();
 
                 return new Tuple<bool, String>(true, token);
             }
@@ -401,45 +534,71 @@ namespace LuckyDrawApplication.Controllers
         {
             bool tokenMatches = false;
 
-            MySqlConnection cn = new MySqlConnection(@"DataSource=103.6.199.135:3306;Initial Catalog=com12348_;User Id=luckywheel;Password=luckywheelrocks123@");
-            cn.Open();
-
-            MySqlCommand cmd = cn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = String.Format("SELECT COUNT(emailAddress) AS count FROM adminforgotpassword WHERE token = @token AND emailAddress = @emailAddress");
-            cmd.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = resetPassword.EmailAddress;
-            cmd.Parameters.Add("@token", MySqlDbType.VarChar).Value = resetPassword.Token;
-
-            MySqlDataReader rd = cmd.ExecuteReader();
-
-            while (rd.Read())
+            try
             {
-                if (Convert.ToInt32(rd["count"].ToString()) == 0)
-                    tokenMatches = false;
-                else
-                    tokenMatches = true;
-            }
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
 
-            rd.Close();
-            rd.Dispose();
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT COUNT(emailAddress) AS count FROM adminforgotpassword WHERE token = '" + resetPassword.Token + "' AND emailAddress = '" + resetPassword.EmailAddress + "'");
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                if (Convert.ToInt32(rd["count"].ToString()) == 0)
+                                    tokenMatches = false;
+                                else
+                                    tokenMatches = true;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+            }
 
             if (tokenMatches)
             {
                 string salt = getSalt();
                 string passwordHash = createPasswordHash(salt, resetPassword.NewPassword);
 
-                MySqlCommand cmd1 = cn.CreateCommand();
-                cmd1.CommandType = CommandType.Text;
-                cmd1.CommandText = String.Format("UPDATE adminlogin SET passwordHash = @passwordHash, salt = @salt WHERE emailAddress = @emailAddress");
-                cmd1.Parameters.Add("@emailAddress", MySqlDbType.VarChar).Value = resetPassword.EmailAddress;
-                cmd1.Parameters.Add("@passwordHash", MySqlDbType.VarChar).Value = passwordHash;
-                cmd1.Parameters.Add("@salt", MySqlDbType.Blob).Value = salt;
+                try
+                {
+                    SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                    builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                    builder.UserID = "sqladmin";
+                    builder.Password = "luckywheel123@";
+                    builder.InitialCatalog = "luckywheeldb";
 
-                MySqlDataReader rd1 = cmd1.ExecuteReader();
+                    using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                    {
+                        StringBuilder sb = new StringBuilder();
+                        sb.Append("UPDATE adminlogin SET passwordHash = '" + passwordHash + "', salt = '" + salt + "' WHERE emailAddress = '" + resetPassword.EmailAddress + "'");
+                        String sql = sb.ToString();
 
-                rd1.Close();
-                cmd1.Dispose();
-                cn.Close();
+                        using (SqlCommand command = new SqlCommand(sql, connection))
+                        {
+                            connection.Open();
+                            SqlDataReader rd = command.ExecuteReader();
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.ToString());
+                }
 
                 return true;
 
@@ -453,21 +612,37 @@ namespace LuckyDrawApplication.Controllers
         {
             List<SelectListItem> Events = new List<SelectListItem>();
 
-            MySqlConnection cn = new MySqlConnection(@"DataSource=103.6.199.135:3306;Initial Catalog=com12348_;User Id=luckywheel;Password=luckywheelrocks123@");
-            cn.Open();
-
-            MySqlCommand cmd = cn.CreateCommand();
-            cmd.CommandType = CommandType.Text;
-            cmd.CommandText = String.Format("SELECT * FROM event");
-            MySqlDataReader rd = cmd.ExecuteReader();
-            while (rd.Read())
+            try
             {
-                Events.Add(new SelectListItem() { Text = Convert.ToInt32(rd["EventID"]).ToString() + "- " + rd["EventLocation"].ToString(), Value = Convert.ToInt32(rd["EventID"]).ToString() });
-            }
-            rd.Close();
-            cmd.Dispose();
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
 
-            cn.Close();
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT * FROM event");
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                Events.Add(new SelectListItem() { Text = Convert.ToInt32(rd["EventID"]).ToString() + "- " + rd["EventLocation"].ToString(), Value = Convert.ToInt32(rd["EventID"]).ToString() });
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
 
             return Events;
         }

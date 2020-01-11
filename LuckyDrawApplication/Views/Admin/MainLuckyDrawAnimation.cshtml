@@ -1,7 +1,7 @@
 ﻿﻿@model LuckyDrawApplication.Models.User
 
 @{
-    ViewBag.Title = "Purchaser Registration";
+    ViewBag.Title = "Lucky Draw";
 }
 
     <style>
@@ -60,10 +60,31 @@
             box-shadow: 2px 1000px 1px #E0B066 inset;
         }
 
-            button.button:hover {
-                box-shadow: none;
-                color: #c90000;
-            }
+        button-r.button {
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Roboto';
+            font-size: medium;
+            font-weight: bolder;
+            padding: 1rem 5rem;
+            color: #c90000;
+            box-shadow: 0 0 6px 0 rgba(157, 96, 212, 0.5);
+            border: solid 3px transparent;
+            background-image: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0)), linear-gradient(101deg, #d49e4a, #d99834);
+            background-origin: border-box;
+            background-clip: content-box, border-box;
+            box-shadow: 2px 1000px 1px #E0B066 inset;
+        }
+
+        button.button:hover {
+            box-shadow: none;
+            color: #c90000;
+        }
+
+        button.button-r:hover {
+            box-shadow: none;
+            color: #c90000;
+        }
 
         #special {
             top: 0;
@@ -73,7 +94,15 @@
             margin-right: 20px;
         }
 
-        #pig {
+        #non-special {
+            top: 0;
+            margin-top: 5px;
+            position: absolute;
+            left: 0;
+            margin-left: 20px;
+        }
+
+        #pig, #refresh_new_purchaser {
             border-radius: 1rem;
             font-family: 'Roboto';
             font-size: small;
@@ -167,6 +196,15 @@
             <button class="button" id="submit_form">HUAT AH!</button>
             <p style="" id="details"><b>@ViewBag.WinnerName</b></p>
             <p id="details2"><b>DATE OF DRAW</b></p>
+            <div class="row text-center">
+                <a style="color:#f2b350; text-align:center" href="@Url.Action("Index", "Admin")">Back to Admin Index</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" id="non-special">
+        <div class="row">
+            <button id="refresh_new_purchaser"><span class="glyphicon glyphicon-refresh"></span>REFRESH</button>
         </div>
     </div>
 
@@ -182,6 +220,8 @@
 <script type="text/javascript">
 
 $(document).ready(function () {
+
+    $('#luckydraw').addClass("active");
 
     var now = new Date();
     var today = now.getDate()  + ' / ' + (now.getMonth() + 1) + ' / ' + now.getFullYear();
@@ -199,6 +239,32 @@ $(document).ready(function () {
             }
         });
     });
+
+    $('#refresh_new_purchaser').click(function() {
+
+        $.ajax({
+            url: '@Url.Action("MainLuckyDrawAnimation", "Admin", new { id = ViewBag.WinnerID })',
+            method: 'POST',
+            success: function (data) {
+
+                if (data.success) {
+
+                     var linkHref = data.urllink;
+                     window.location.href = linkHref;
+                }
+
+                else {
+                    alert(data.message);
+                }
+
+            },
+            error: function (data) {
+                alert(data.message);
+            }
+        });
+
+    });
+
 });
 
 </script>

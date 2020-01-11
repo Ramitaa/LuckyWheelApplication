@@ -1,0 +1,131 @@
+﻿@model LuckyDrawApplication.Models.ProjectView
+
+@{
+    ViewBag.Title = "Edit Project";
+}
+
+<link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet" />
+
+<!-- Site wrapper -->
+<div class="wrapper">
+
+    @Html.Partial("_AdminLayout")
+
+    <!-- Content Wrapper. Contains page content -->
+    <div class="content-wrapper">
+
+        <!-- Content Header (Page header) -->
+        <section class="content-header">
+            <h1 style="margin-top: 20px;">Edit Project</h1>
+            <ol class="breadcrumb">
+                <li><a href="~/Admin/Index"><i class="fa fa-dashboard"></i>Dashboard</a></li>
+                <li><a href="~/Project/Index"></i>Projects List</a></li>
+                <li class="active">Edit Project</li>
+            </ol>
+
+        </section>
+
+        <!-- Main content -->
+        <section class="content">
+
+            <!-- Default box -->
+            <div class="box box-primary">
+
+                <h4 style="margin-top: 30px; margin-bottom: 30px; font-weight:bold; text-align:center">Edit Event</h4>
+
+                <div class="box-body">
+
+                    <div class="container-fluid">
+
+                        <div class="callout callout-warning">
+                            <h4>Attention! Prevent data corruption by following these steps!</h4>
+
+                            <p><h4>Prize Category Field must be correct to prevent data corruption.</h4></p>
+                            <p><h3>Eg. Prize Category Field: <b>8888,5888,3888</b></h3></p>
+
+                            <ol>
+                                <li>The field must not contain any extra spaces.</li>
+                                <li>The categories in field must be separated by a comma.</li>
+                                <li>A comma after the last category in field is NOT ALLOWED.</li>
+                                <li>The number of categories in the field and CSV file MUST MATCH.</li>
+                            </ol>
+
+                        </div>
+
+                        @using (Html.BeginForm())
+                        {
+                            @Html.AntiForgeryToken()
+
+                            <div class="form-horizontal">
+
+                                @Html.ValidationSummary(true, "", new { @class = "text-danger" })
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.ProjectID, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.EditorFor(model => model.ProjectID, new { htmlAttributes = new { @class = "form-control", @readonly = "readonly" } })
+                                        @Html.ValidationMessageFor(model => model.ProjectID, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.ProjectName, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.EditorFor(model => model.ProjectName, new { htmlAttributes = new { @class = "form-control" } })
+                                        @Html.ValidationMessageFor(model => model.ProjectName, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.EventID, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.DropDownListFor(model => model.EventID, (IEnumerable<SelectListItem>)ViewBag.Events, new { @class = "form-control" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.NoOfProject, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.EditorFor(model => model.NoOfProject, new { htmlAttributes = new { @class = "form-control" } })
+                                        @Html.ValidationMessageFor(model => model.NoOfProject, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.PrizeCategory, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        @Html.EditorFor(model => model.PrizeCategory, new { htmlAttributes = new { @class = "form-control" } })
+                                        @Html.ValidationMessageFor(model => model.PrizeCategory, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
+                                <div class="form-actions no-color pull-right">
+                                    <a href="~/Project/Index" class="btn btn-primary">Back</a>
+                                    <input type="submit" value="Modify" class="btn btn-warning" />
+                                </div>
+
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+        </section>
+        <!-- /.content -->
+    </div>
+    <!-- /.content-wrapper -->
+
+    @Html.Partial("_Footer")
+
+</div>
+
+<script src="~/admin-lte/js/adminlte.min.js"></script>
+<script src="~/Scripts/jquery-3.3.1.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+
+
+<!-- #endregion -->
+<script>
+$(document).ready(function () {
+    $('#projects').addClass("active");
+});</script>

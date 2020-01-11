@@ -1,5 +1,4 @@
-﻿
-@{
+﻿@{
     ViewBag.Title = "Admin Login";
 }
 
@@ -45,7 +44,6 @@
 
             <div class="form-group">
                 @Html.DropDownListFor(model => model.EventID, (IEnumerable<SelectListItem>)ViewBag.Events, new { @class = "form-control" })
-                @Html.ValidationMessageFor(model => model.EventID, "", new { @class = "text-danger" })
             </div>
 
             <div class="row">
