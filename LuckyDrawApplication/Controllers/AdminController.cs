@@ -224,7 +224,7 @@ namespace LuckyDrawApplication.Controllers
             else
             {
                 ViewBag.WinnerID = 0;
-                ViewBag.WinnerName = "";
+                ViewBag.WinnerName = "No new winner!";
                 ViewBag.WinnerPrize = 0;
             }
 
@@ -232,7 +232,7 @@ namespace LuckyDrawApplication.Controllers
         }
 
         [HttpPost]
-        public ActionResult MainLuckyDrawAnimation(int id)
+        public ActionResult MainLuckyDrawAnimation(Models.SimpleUser simpleUser)
         {
             Models.Admin a_user = (Models.Admin)Session["admin"];
             Models.Event luckydrawevent = (Models.Event)Session["event"];
@@ -242,7 +242,7 @@ namespace LuckyDrawApplication.Controllers
 
             ViewBag.Name = a_user.Name;
 
-            int results = UpdateDisplayabilityOfUser(id, luckydrawevent.EventID);
+            int results = UpdateDisplayabilityOfUser(simpleUser.PurchaserID, luckydrawevent.EventID);
 
             if (results == 0)
             {
@@ -263,6 +263,60 @@ namespace LuckyDrawApplication.Controllers
             }
         }
 
+        [HttpPost]
+        public ActionResult MainLuckyDrawAnimationSkip(Models.SimpleUser simpleUser)
+        {
+            Models.Admin a_user = (Models.Admin)Session["admin"];
+            Models.Event luckydrawevent = (Models.Event)Session["event"];
+
+            if (a_user == null || luckydrawevent == null)
+                return RedirectToAction("AdminIndex", "Login");
+
+            ViewBag.Name = a_user.Name;
+
+            int results = UpdateWaitingDisplayabilityOfUser(simpleUser.PurchaserID, 1);
+
+            if (results == 0)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Failed to update waiting ability of user!"
+                }, JsonRequestBehavior.AllowGet); ;
+            }
+            else
+            {
+                return Json(new
+                {
+                    success = true,
+                    message = "Waiting ability of user modified successfully!",
+                    urllink = Url.Action("MainLuckyDrawAnimation", "Admin"),
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
+        [HttpGet]
+        public ActionResult MainLuckyDrawAnimationDeleteSkip(int new_id)
+        {
+            Models.Admin a_user = (Models.Admin)Session["admin"];
+            Models.Event luckydrawevent = (Models.Event)Session["event"];
+
+            if (a_user == null || luckydrawevent == null)
+                return RedirectToAction("AdminIndex", "Login");
+
+            ViewBag.Name = a_user.Name;
+
+            int results = UpdateWaitingDisplayabilityOfUser(new_id, 0);
+
+            if (results == 0)
+            {
+                return RedirectToAction("PendingUsers", "Admin"); 
+            }
+            else
+            {
+                return RedirectToAction("LuckyDrawAnimation", "Admin", new { id = new_id });
+            }
+        }
 
         public ActionResult Users()
         {
@@ -814,7 +868,7 @@ namespace LuckyDrawApplication.Controllers
                 using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("SELECT users.*, project.ProjectName, project.PrizeCategory, event.EventLocation FROM users INNER JOIN project on project.ProjectID = users.ProjectID INNER JOIN event ON event.EventID = users.EventID WHERE users.EventID = " + eventID);
+                    sb.Append("SELECT users.*, project.ProjectName, project.PrizeCategory, event.EventLocation FROM users INNER JOIN project on project.ProjectID = users.ProjectID INNER JOIN event ON event.EventID = users.EventID WHERE users.EventID = " + eventID + " AND users.Waiting = 1;");
                     String sql = sb.ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))
@@ -1009,7 +1063,7 @@ namespace LuckyDrawApplication.Controllers
                 using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("SELECT TOP 1 project.ProjectName, project.PrizeCategory, event.EventLocation, users.* FROM users INNER JOIN project on project.ProjectID = users.ProjectID INNER JOIN event ON event.EventID = users.EventID WHERE users.Displayed = 0 AND users.EventID = " + eventCode + " ORDER BY RAND()");
+                    sb.Append("SELECT TOP 1 project.ProjectName, project.PrizeCategory, event.EventLocation, users.* FROM users INNER JOIN project on project.ProjectID = users.ProjectID INNER JOIN event ON event.EventID = users.EventID WHERE users.Displayed = 0 AND users.EventID = " + eventCode + " AND users.Waiting = 0 ORDER BY RAND()");
                     String sql = sb.ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))
@@ -1074,6 +1128,40 @@ namespace LuckyDrawApplication.Controllers
                 {
                     StringBuilder sb = new StringBuilder();
                     sb.Append("UPDATE users SET Displayed = 1 WHERE PurchaserID = " + userID);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+
+                return 1;
+            }
+            catch (SqlException e)
+            {
+                Console.WriteLine(e.ToString());
+                return 0;
+            }
+        }
+
+        // Mark user as read;
+        [NonAction]
+        public int UpdateWaitingDisplayabilityOfUser(int userID, int value)
+        {
+            try
+            {
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("UPDATE users SET Displayed  = 1, Waiting = " + value + " WHERE PurchaserID = " + userID);
                     String sql = sb.ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))

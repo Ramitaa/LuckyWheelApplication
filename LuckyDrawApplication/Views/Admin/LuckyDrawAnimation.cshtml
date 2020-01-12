@@ -146,12 +146,6 @@
 
 <div class="Center-Container">
 
-    <div class="row" id="special">
-        <div class="row">
-            <a id="pig" href="@Url.Action("Logout", "Login")"><span class="glyphicon glyphicon-log-out"></span>Log out</a>
-        </div>
-    </div>
-
     <div class="container results-form">
 
         <h1 id="rebatesheader">REWARDS AND REBATES UP TO</h1>
@@ -167,6 +161,9 @@
             <button class="button" id="submit_form">HUAT AH!</button>
             <p style="" id="details"><b>@ViewBag.WinnerName</b></p>
             <p id="details2"><b>DATE OF DRAW</b></p>
+            <div class="row text-center">
+                <a style="color:#f2b350; text-align:center" href="@Url.Action("Index", "Admin")">Back to Admin Index</a>
+            </div>
         </div>
     </div>
 

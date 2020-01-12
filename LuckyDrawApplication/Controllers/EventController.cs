@@ -409,6 +409,33 @@ namespace LuckyDrawApplication.Controllers
                 using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
                     StringBuilder sb = new StringBuilder();
+                    sb.Append("DELETE FROM agent WHERE EventID = " + id);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+            }
+            catch (SqlException e)
+            {
+                Console.WriteLine(e.ToString());
+                return false;
+            }
+
+            try
+            {
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
                     sb.Append("DELETE FROM event WHERE EventID = " + id);
                     String sql = sb.ToString();
 

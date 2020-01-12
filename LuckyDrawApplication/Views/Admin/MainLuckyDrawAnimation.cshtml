@@ -102,7 +102,7 @@
             margin-left: 20px;
         }
 
-        #pig, #refresh_new_purchaser {
+        #pig, #refresh_new_purchaser, #skip_new_purchaser {
             border-radius: 1rem;
             font-family: 'Roboto';
             font-size: small;
@@ -175,9 +175,15 @@
 
 <div class="Center-Container">
 
+    <div class="row" id="non-special">
+        <div class="row">
+            <button id="skip_new_purchaser"><span class="glyphicon glyphicon-repeat"></span>SKIP</button>
+        </div>
+    </div>
+
     <div class="row" id="special">
         <div class="row">
-            <a id="pig" href="@Url.Action("Logout", "Login")"><span class="glyphicon glyphicon-log-out"></span>Log out</a>
+            <button id="refresh_new_purchaser"><span class="glyphicon glyphicon-arrow-right"></span>NEXT</button>
         </div>
     </div>
 
@@ -199,12 +205,6 @@
             <div class="row text-center">
                 <a style="color:#f2b350; text-align:center" href="@Url.Action("Index", "Admin")">Back to Admin Index</a>
             </div>
-        </div>
-    </div>
-
-    <div class="row" id="non-special">
-        <div class="row">
-            <button id="refresh_new_purchaser"><span class="glyphicon glyphicon-refresh"></span>REFRESH</button>
         </div>
     </div>
 
@@ -240,12 +240,74 @@ $(document).ready(function () {
         });
     });
 
-    $('#refresh_new_purchaser').click(function() {
+    /*$('#refresh_new_purchaser').click(function() {
 
         $.ajax({
-            url: '@Url.Action("MainLuckyDrawAnimation", "Admin", new { id = ViewBag.WinnerID })',
+            url: 'Url.Action("MainLuckyDrawAnimation", "Admin", new { id = ViewBag.WinnerID })',
             method: 'POST',
             success: function (data) {
+
+                if (data.success) {
+
+                     var linkHref = data.urllink;
+                     window.location.href = linkHref;
+                }
+
+                else {
+                    alert(data.message);
+                }
+
+            },
+            error: function (data) {
+                alert(data.message);
+            }
+        });
+
+    });*/
+
+        $('#refresh_new_purchaser').click(function() {
+        
+        var json = { 'PurchaserID': @ViewBag.WinnerID };
+
+        $.ajax({
+            url: '@Url.Action("MainLuckyDrawAnimation", "Admin")',
+                    method: 'POST',
+                    data: JSON.stringify(json),
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    processData: false,
+                    success: function (data) {
+
+                if (data.success) {
+
+                     var linkHref = data.urllink;
+                     window.location.href = linkHref;
+                }
+
+                else {
+                    alert(data.message);
+                }
+
+            },
+            error: function (data) {
+                alert(data.message);
+            }
+        });
+
+    });
+
+    $('#skip_new_purchaser').click(function() {
+
+        var json = { 'PurchaserID': @ViewBag.WinnerID };
+
+        $.ajax({
+            url: '@Url.Action("MainLuckyDrawAnimationSkip", "Admin")',
+                    method: 'POST',
+                    data: JSON.stringify(json),
+                    dataType: 'json',
+                    contentType: 'application/json',
+                    processData: false,
+                    success: function (data)  {
 
                 if (data.success) {
 

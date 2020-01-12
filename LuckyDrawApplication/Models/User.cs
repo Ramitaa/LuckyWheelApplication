@@ -75,5 +75,8 @@ namespace LuckyDrawApplication.Models {
 
         [Display(Name = "Displayed")]
         public int Displayed { get; set; }
+
+        [Display(Name = "Waiting")]
+        public int Waiting { get; set; }
     }
 }
