@@ -21,9 +21,6 @@ namespace LuckyDrawApplication.Models
         [Display(Name = "Event Password")]
         public string EventPassword { get; set; }
 
-        [Display(Name = "Event Salt")]
-        public string EventSalt { get; set; }
-
         [Display(Name = "Event Location")]
         public string EventLocation { get; set; }
 

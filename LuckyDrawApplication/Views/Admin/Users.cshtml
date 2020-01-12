@@ -43,13 +43,13 @@
                                 <thead>
                                     <tr>
                                         <th>
+                                            ID
+                                        </th>
+                                        <th>
                                             @Html.DisplayNameFor(model => model.Name)
                                         </th>
                                         <th>
                                             @Html.DisplayNameFor(model => model.ICNumber)
-                                        </th>
-                                        <th>
-                                            @Html.DisplayNameFor(model => model.ContactNumber)
                                         </th>
                                         <th>
                                             @Html.DisplayNameFor(model => model.ProjectName)
@@ -61,10 +61,7 @@
                                             @Html.DisplayNameFor(model => model.SalesConsultant)
                                         </th>
                                         <th>
-                                            @Html.DisplayNameFor(model => model.SalesLocation)
-                                        </th>
-                                        <th>
-                                            @Html.DisplayNameFor(model => model.PrizeWon)
+                                            @Html.DisplayNameFor(model => model.DateTime)
                                         </th>
                                         <th>
                                             Actions
@@ -75,43 +72,34 @@
                                 <tbody>
                                     @foreach (var item in Model)
                                     {
-                                        <tr>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.Name)
-                                            </td>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.ICNumber)
-                                            </td>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.ContactNumber)
-                                            </td>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.ProjectName)
-                                            </td>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.Unit)
-                                            </td>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.SalesConsultant)
-                                            </td>
-                                            <td>
-                                                @Html.DisplayFor(modelItem => item.SalesLocation)
-                                            </td>
-                                            <td>
-                                                @if (item.PrizeWon > 0)
-                                                {
-                                                    <p style="color:#64b300;font-weight:bold">@item.PrizeWon</p>
-                                                }
-                                                else
-                                                {
-                                                    <p style="color:#ff0000;font-weight:bold;">0</p>
-                                                }
-                                            </td>
-                                            <td>
-                                                <a href='@Url.Action("ViewUser", "Admin", new { id = item.PurchaserID })' class="btn btn-xs btn-info">View</a>
-                                                <a href='@Url.Action("ModifyUser", "Admin", new { id = item.PurchaserID })' class="btn btn-xs btn-warning">Modify</a>
-                                            </td>
-                                        </tr>
+                                    <tr>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.PurchaserID)
+                                        </td>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.Name)
+                                        </td>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.ICNumber)
+                                        </td>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.ProjectName)
+                                        </td>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.Unit)
+                                        </td>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.SalesConsultant)
+                                        </td>
+                                        <td>
+                                            @Html.DisplayFor(modelItem => item.DateTime)
+                                        </td>
+                                        <td>
+                                            <a href='@Url.Action("ViewUser", "Admin", new { id = item.PurchaserID })' class="btn btn-xs btn-info">View</a>
+                                            <a href='@Url.Action("ModifyUser", "Admin", new { id = item.PurchaserID })' class="btn btn-xs btn-warning">Modify</a>
+                                            <a href='@Url.Action("DeleteUser", "Admin", new { id = item.PurchaserID })' class="btn btn-xs btn-danger">Delete</a>
+                                        </td>
+                                    </tr>
                                     }
                                 </tbody>
                             </table>
@@ -149,7 +137,7 @@
         $('#purchasers').addClass("active");
         var table = $('#usersTable').DataTable({
             responsive: true,
-            "order": [[7, "desc"]]
+            "order": [[0, "desc"]]
         });
     });
 </script>

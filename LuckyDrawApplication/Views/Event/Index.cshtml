@@ -78,8 +78,8 @@
                                                 @Html.DisplayFor(modelItem => item.EventLocation)
                                             </td>
                                             <td>
-                                                <a href='@Url.Action("Edit", "Event", new { id = item.EventID })' class="btn btn-xs btn-info">Modify</a>
-                                                <a href='@Url.Action("Delete", "Event", new { id = item.EventID })' class="btn btn-xs btn-warning">Delete</a>
+                                                <a href='@Url.Action("Edit", "Event", new { id = item.EventID })' class="btn btn-xs btn-warning">Modify</a>
+                                                <a href='@Url.Action("Delete", "Event", new { id = item.EventID })' class="btn btn-xs btn-danger">Delete</a>
                                             </td>
                                         </tr>
                                     }

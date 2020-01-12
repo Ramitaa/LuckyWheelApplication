@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Web;
@@ -56,19 +57,27 @@ namespace LuckyDrawApplication.Controllers
             {
                 if(ModelState.IsValid)
                 {
-                    bool created = CreateNewEvent(eventView);
+                    if (eventView.StaffPrizeData != null)
+                    {
+                        Tuple<bool, string> results = CreateNewEvent(eventView);
 
-                    if (created)
-                        return RedirectToAction("Index", "Event");
+                        if (results.Item1)
+                            return RedirectToAction("Index", "Event");
+                        else
+                        {
+                            ModelState.AddModelError(string.Empty, results.Item2);
+                            return View();
+                        }
+                    }
                     else
                     {
-                        ViewBag.ErrorMessage = "Creation of event failed due to database problem!";
+                        ModelState.AddModelError(string.Empty, "Staff Lucky draw prizes data file is missing!");
                         return View();
                     }
                 }
                 else
                 {
-                    ViewBag.ErrorMessage = "Creation of event failed. Invalid field columns!";
+                    ModelState.AddModelError(string.Empty, "Creation of event failed. Invalid field columns!");
                     return View();
                 }   
             }
@@ -110,19 +119,27 @@ namespace LuckyDrawApplication.Controllers
             {
                 if (ModelState.IsValid)
                 {
-                    bool edited = EditExistingEvent(eventView);
+                    if (eventView.StaffPrizeData != null)
+                    {
+                        Tuple<bool, string> results = EditExistingEvent(eventView);
 
-                    if (edited)
-                        return RedirectToAction("Index", "Event");
+                        if (results.Item1)
+                            return RedirectToAction("Index", "Event");
+                        else
+                        {
+                            ModelState.AddModelError(string.Empty, results.Item2);
+                            return View();
+                        }
+                    }
                     else
                     {
-                        ViewBag.ErrorMessage = "Modification of event failed due to database problem!";
+                        ModelState.AddModelError(string.Empty, "Staff lucky draw prizes data file is missing!");
                         return View();
                     }
                 }
                 else
                 {
-                    ViewBag.ErrorMessage = "Modification of event failed. Invalid field columns!";
+                    ModelState.AddModelError(string.Empty, "Edition of event failed. Invalid field columns!");
                     return View();
                 }
             }
@@ -181,10 +198,9 @@ namespace LuckyDrawApplication.Controllers
 
         //Create new event
         [NonAction]
-        public bool CreateNewEvent(Models.EventView eventView)
+        public Tuple<bool, string> CreateNewEvent(Models.EventView eventView)
         {
-            string salt = LoginController.getSalt();
-            string hash = LoginController.createPasswordHash(salt, eventView.EventPassword);
+            int last_inserted_id = 0;
 
             try
             {
@@ -197,8 +213,58 @@ namespace LuckyDrawApplication.Controllers
                 using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("INSERT INTO event(EventCode, EventPassword, EventSalt, EventLocation) VALUES ('" + eventView.EventCode + "', '" + hash + "', '" + salt + "', '" + eventView.EventLocation.ToUpper() + "')");
+                    sb.Append("INSERT INTO event(EventCode, EventPassword, EventLocation) VALUES ('" + eventView.EventCode + "', '" + eventView.EventPassword + "', '" + eventView.EventLocation.ToUpper() + "'); SELECT SCOPE_IDENTITY() AS id;");
                     String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                last_inserted_id = Convert.ToInt32(rd["id"]);
+                            }
+                        }
+                    }
+                }
+
+                return UploadStaffLuckyDrawPrizeData(last_inserted_id, eventView);
+            }
+            catch (SqlException e)
+            {
+                Console.WriteLine(e.ToString());
+                return new Tuple<bool, string>(false, "Error! Unable to create basic event");
+            }
+        }
+
+        [NonAction]
+        public Tuple<bool, string> UploadStaffLuckyDrawPrizeData(int eventID, Models.EventView ev)
+        {
+            try
+            {
+                StreamReader csvreader = new StreamReader(ev.StaffPrizeData.InputStream);
+
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("INSERT INTO agent(orderNo, prizeAmount, won, EventID) VALUES ");
+
+                    while (!csvreader.EndOfStream)
+                    {
+                        string line = csvreader.ReadLine();
+                        string[] values = line.Split(',');
+                        sb.Append("(" + values[0] + ", " + values[1] + ", 0, " + eventID + ") ,");
+                    }
+
+                    String sql = sb.ToString();
+                    sql = sql.Substring(0, sql.Length - 1).ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))
                     {
@@ -207,21 +273,20 @@ namespace LuckyDrawApplication.Controllers
                     }
                 }
 
-                return true;
+                return new Tuple<bool, string>(true, "");
             }
-            catch (SqlException e)
+
+            catch (Exception e)
             {
                 Console.WriteLine(e.ToString());
-                return false;
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!" + e.ToString());
             }
         }
 
         //Edit new event
         [NonAction]
-        public bool EditExistingEvent(Models.EventView eventView)
+        public Tuple<bool, string> EditExistingEvent(Models.EventView eventView)
         {
-            string salt = LoginController.getSalt();
-            string hash = LoginController.createPasswordHash(salt, eventView.EventPassword);
 
             try
             {
@@ -234,7 +299,7 @@ namespace LuckyDrawApplication.Controllers
                 using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("UPDATE event SET EventCode = '" + eventView.EventCode + "', EventPassword = '" + hash + "', EventSalt = '" + salt + "', EventLocation = '" + eventView.EventLocation.ToUpper() + "' WHERE EventID = " + eventView.EventID);
+                    sb.Append("UPDATE event SET EventCode = '" + eventView.EventCode + "', EventPassword = '" + eventView.EventPassword + "', EventLocation = '" + eventView.EventLocation.ToUpper() + "' WHERE EventID = " + eventView.EventID);
                     String sql = sb.ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))
@@ -244,12 +309,85 @@ namespace LuckyDrawApplication.Controllers
                     }
                 }
 
-                return true;
+                return UploadEditedStaffLuckyDrawPrizeData(eventView);
             }
             catch (SqlException e)
             {
                 Console.WriteLine(e.ToString());
-                return false;
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!");
+            }
+        }
+
+        [NonAction]
+        public Tuple<bool, string> UploadEditedStaffLuckyDrawPrizeData(Models.EventView ev)
+        {
+            try
+            {
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("DELETE FROM agent WHERE EventID = " + ev.EventID);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+            }
+
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return new Tuple<bool, string>(false, "Previous data cannot be deleted!");
+            }
+
+            try
+            {
+                StreamReader csvreader = new StreamReader(ev.StaffPrizeData.InputStream);
+
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("INSERT INTO agent(orderNo, prizeAmount, won, EventID) VALUES ");
+
+                    while (!csvreader.EndOfStream)
+                    {
+                        string line = csvreader.ReadLine();
+                        string[] values = line.Split(',');
+                        sb.Append("(" + values[0] + ", " + values[1] + ", 0, " + ev.EventID + ") ,");
+                    }
+
+                    String sql = sb.ToString();
+                    sql = sql.Substring(0, sql.Length - 1).ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+
+                return new Tuple<bool, string>(true, "");
+            }
+
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return new Tuple<bool, string>(false, "File uploaded is not correctly formatted!");
             }
         }
 

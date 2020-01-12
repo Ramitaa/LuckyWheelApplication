@@ -357,8 +357,10 @@
                              $("#submit_form").css("display", "inline");
                              $("#loading").css("display", "none");
 
-                            //var linkHref = data.urllink;
-                            //window.open(linkHref);
+                             alert(data.message);
+
+                             var linkHref = data.urllink;
+                             window.open(linkHref);
                         }
 
                         else {

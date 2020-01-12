@@ -30,9 +30,6 @@ namespace LuckyDrawApplication.Models
         [Display(Name = "Password Hash")]
         public string PasswordHash { get; set; }
 
-        [Display(Name = "Salt")]
-        public String Salt { get; set; }
-
         [Display(Name = "Event ID")]
         public int EventID { get; set; }
     }

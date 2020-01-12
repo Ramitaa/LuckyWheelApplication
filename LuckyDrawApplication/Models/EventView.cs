@@ -28,5 +28,9 @@ namespace LuckyDrawApplication.Models
         [Display(Name = "Event Location")]
         [MaxLength(50, ErrorMessage = "Maximum 50 characters")]
         public string EventLocation { get; set; }
+
+        [Required]
+        [Display(Name = "Staff Prize Data")]
+        public HttpPostedFileBase StaffPrizeData { get; set; }
     }
 }

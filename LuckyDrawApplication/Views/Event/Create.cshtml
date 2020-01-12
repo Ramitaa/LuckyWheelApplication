@@ -37,7 +37,21 @@
 
                     <div class="container-fluid">
 
-                        @using (Html.BeginForm())
+                        <div class="callout callout-warning">
+                            <h4 style="margin-bottom:20px;">Attention! Prevent data corruption by following these steps!</h4>
+                            <p><h4>Staff Prize Data File </h4></p>
+                            <p><h5>Eg. <a target="_blank" href="https://drive.google.com/file/d/1DkeFd4jr2e3lyJgz5R5ly30LXRO_lteu/view?usp=sharing">Download Sample</a></h5></p>
+
+                            <ol>
+                                <li>First column: Order Number, Second column: Prize Amount</li>
+                                <li>The file must only contain 1 sheet with 2 columns.</li>
+                                <li>The file saved MUST BE IN CSV FORMAT. Please refer to the sample link above.</li>
+                            </ol>
+
+                        </div>
+
+
+                        @using (Html.BeginForm("Create", "Event", FormMethod.Post, new { enctype = "multipart/form-data" }))
                         {
                             @Html.AntiForgeryToken()
 
@@ -67,6 +81,15 @@
                                         @Html.ValidationMessageFor(model => model.EventLocation, "", new { @class = "text-danger" })
                                     </div>
                                 </div>
+
+                                <div class="form-group">
+                                    @Html.LabelFor(model => model.StaffPrizeData, htmlAttributes: new { @class = "control-label col-md-2" })
+                                    <div class="col-md-4">
+                                        <input type="file" class="custom-file-input" id="StaffPrizeData" name="StaffPrizeData">
+                                        @Html.ValidationMessageFor(model => model.StaffPrizeData, "", new { @class = "text-danger" })
+                                    </div>
+                                </div>
+
 
                                 <div class="form-actions no-color pull-right">
                                     <a href="~/Event/Index" class="btn btn-primary">Back</a>

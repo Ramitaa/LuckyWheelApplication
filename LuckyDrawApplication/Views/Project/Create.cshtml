@@ -103,14 +103,6 @@
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    @Html.LabelFor(model => model.PrizeData, htmlAttributes: new { @class = "control-label col-md-2" })
-                                    <div class="col-md-4">
-                                        <input type="file" class="custom-file-input" id="PrizeData" name="PrizeData">
-                                        @Html.ValidationMessageFor(model => model.PrizeData, "", new { @class = "text-danger" })
-                                    </div>
-                                </div>
-
                                 <div class="form-actions no-color pull-right">
                                     <a href="~/Project/Index" class="btn btn-primary">Back</a>
                                     <input type="submit" value="Create" class="btn btn-success" />

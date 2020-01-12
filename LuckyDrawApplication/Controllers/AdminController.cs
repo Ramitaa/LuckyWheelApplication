@@ -147,6 +147,14 @@ namespace LuckyDrawApplication.Controllers
                     message = "No sales agent to be picked as winner!"
                 }, JsonRequestBehavior.AllowGet); ;
             }
+            else if (results.Item2 == 0)
+            {
+                return Json(new
+                {
+                    success = false,
+                    message = "Staff lucky draw prizes have finished!"
+                }, JsonRequestBehavior.AllowGet); ;
+            }
             else
             {
                 return Json(new
@@ -271,6 +279,21 @@ namespace LuckyDrawApplication.Controllers
             return View(userList);
         }
 
+        public ActionResult PendingUsers()
+        {
+            Models.Admin a_user = (Models.Admin)Session["admin"];
+            Models.Event luckydrawevent = (Models.Event)Session["event"];
+
+            if (a_user == null || luckydrawevent == null)
+                return RedirectToAction("AdminIndex", "Login");
+
+            List<User> userList = GetPendingUserList(luckydrawevent.EventID);
+
+            ViewBag.Name = a_user.Name;
+
+            return View(userList);
+        }
+
         public ActionResult Winners()
         {
             Models.Admin a_user = (Models.Admin)Session["admin"];
@@ -372,6 +395,52 @@ namespace LuckyDrawApplication.Controllers
 
         }
 
+        [HttpGet]
+        public ActionResult DeleteUser(int id)
+        {
+            Models.Admin a_user = (Models.Admin)Session["admin"];
+            Models.Event luckydrawevent = (Models.Event)Session["event"];
+
+            if (a_user == null || luckydrawevent == null)
+                return RedirectToAction("AdminIndex", "Login");
+
+            Models.User user = GetUser(id);
+            ViewBag.Name = a_user.Name;
+
+            return View(user);
+        }
+
+        [HttpPost]
+        public ActionResult DeleteUser(Models.User user)
+        {
+            Models.Admin a_user = (Models.Admin)Session["admin"];
+            Models.Event luckydrawevent = (Models.Event)Session["event"];
+
+            if (a_user == null || luckydrawevent == null)
+                return RedirectToAction("AdminIndex", "Login");
+
+            if (user != null)
+            {
+                DeleteExistingUser(user, luckydrawevent.EventID);
+                return Json(new
+                {
+                    success = true,
+                    url = Url.Action("Users", "Admin"),
+                    message = user.Name.ToUpper() + " with ID: " + user.PurchaserID + " has been successfully deleted!"
+                }, JsonRequestBehavior.AllowGet);
+            }
+            else
+            {
+                response_message = "User is null!";
+
+                return Json(new
+                {
+                    success = false,
+                    message = user.Name.ToUpper() + " cannot be deleted! Error: " + response_message
+                }, JsonRequestBehavior.AllowGet);
+            }
+        }
+
         public ActionResult ExportToExcelPurchasers()
         {
             Models.Admin a_user = (Models.Admin)Session["admin"];
@@ -468,6 +537,10 @@ namespace LuckyDrawApplication.Controllers
             int last_inserted_id = 0;
             response_message = "";
 
+            TimeZoneInfo cstZone = TimeZoneInfo.FindSystemTimeZoneById("Singapore Standard Time");
+            DateTime cstTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, cstZone);
+            string sqlFormattedDate = cstTime.ToString("yyyy-MM-dd HH:mm:ss.fff");
+
             try
             {
                 SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
@@ -479,7 +552,7 @@ namespace LuckyDrawApplication.Controllers
                 using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                 {
                     StringBuilder sb = new StringBuilder();
-                    sb.Append("INSERT INTO users(Name, ICNumber, EmailAddress, ContactNumber, EventID, ProjectID, Unit, SalesConsultant, PrizeWon, StaffWon) VALUES ('" + user.Name.ToUpper() + "', '" + user.ICNumber + "', '" + user.EmailAddress.ToLower() + "', '" + user.ContactNumber + "', " + eventCode + ", " + user.ProjectID + ", '" + user.Unit.ToUpper() + "', '" + user.SalesConsultant.ToUpper() + "', 0, 0); SELECT SCOPE_IDENTITY() AS id;");
+                    sb.Append("INSERT INTO users(Name, ICNumber, EmailAddress, ContactNumber, EventID, ProjectID, Unit, SalesConsultant, PrizeWon, DateTime, StaffWon) VALUES ('" + user.Name.ToUpper() + "', '" + user.ICNumber + "', '" + user.EmailAddress.ToLower() + "', '" + user.ContactNumber + "', " + eventCode + ", " + user.ProjectID + ", '" + user.Unit.ToUpper() + "', '" + user.SalesConsultant.ToUpper() + "', 0, '" + sqlFormattedDate + "', 0); SELECT SCOPE_IDENTITY() AS id;");
                     String sql = sb.ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))
@@ -696,6 +769,73 @@ namespace LuckyDrawApplication.Controllers
                                 user.ProjectName = rd["ProjectName"].ToString();
                                 user.SalesLocation = rd["EventLocation"].ToString();
                                 user.Unit = rd["Unit"].ToString();
+                                user.DateTime = rd["DateTime"].ToString();
+
+                                if (Convert.ToInt32(rd["PrizeWon"]) > 0)
+                                {
+                                    string[] prizes = rd["PrizeCategory"].ToString().Split(',');
+                                    user.PrizeWon = Convert.ToInt32(prizes[Convert.ToInt32(rd["PrizeWon"]) - 1]);
+                                }
+                                else
+                                {
+                                    user.PrizeWon = 0;
+                                }
+
+                                user.SalesConsultant = rd["SalesConsultant"].ToString();
+                                user.DateTime = rd["DateTime"].ToString();
+                                UserList.Add(user);
+                            }
+                        }
+                    }
+                }
+            }
+            catch (SqlException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+
+            return UserList;
+        }
+
+        // Get users list
+        [NonAction]
+        public static List<Models.User> GetPendingUserList(int eventID)
+        {
+            List<Models.User> UserList = new List<Models.User>();
+
+            try
+            {
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("SELECT users.*, project.ProjectName, project.PrizeCategory, event.EventLocation FROM users INNER JOIN project on project.ProjectID = users.ProjectID INNER JOIN event ON event.EventID = users.EventID WHERE users.EventID = " + eventID);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        using (SqlDataReader rd = command.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                Models.User user = new Models.User();
+                                user.PurchaserID = Convert.ToInt32(rd["PurchaserID"].ToString());
+                                user.Name = rd["Name"].ToString();
+                                user.ICNumber = rd["ICNumber"].ToString();
+                                user.EmailAddress = rd["EmailAddress"].ToString();
+                                user.ContactNumber = rd["ContactNumber"].ToString();
+                                user.EventID = Convert.ToInt32(rd["EventID"].ToString());
+                                user.ProjectID = Convert.ToInt32(rd["ProjectID"].ToString());
+                                user.ProjectName = rd["ProjectName"].ToString();
+                                user.SalesLocation = rd["EventLocation"].ToString();
+                                user.Unit = rd["Unit"].ToString();
+                                user.DateTime = rd["DateTime"].ToString();
 
                                 if (Convert.ToInt32(rd["PrizeWon"]) > 0)
                                 {
@@ -826,6 +966,7 @@ namespace LuckyDrawApplication.Controllers
                                 user.SalesLocation = rd["EventLocation"].ToString();
                                 user.Unit = rd["Unit"].ToString();
                                 user.SalesConsultant = rd["SalesConsultant"].ToString();
+                                user.DateTime = rd["DateTime"].ToString();
 
                                 if (Convert.ToInt32(rd["PrizeWon"]) > 0)
                                 {
@@ -967,6 +1108,37 @@ namespace LuckyDrawApplication.Controllers
                 {
                     StringBuilder sb = new StringBuilder();
                     sb.Append("UPDATE users SET Name = '" + user.Name.ToUpper() + "' , ICNumber = '" + user.ICNumber + "' , EmailAddress = '" + user.EmailAddress.ToLower() + "' , ContactNumber = '" + user.ContactNumber + "' , EventID = " + eventCode + ", ProjectID = " + user.ProjectID + ", Unit = '" + user.Unit.ToUpper() + "', SalesConsultant = '" + user.SalesConsultant.ToUpper() + "' WHERE PurchaserID = " + user.PurchaserID);
+                    String sql = sb.ToString();
+
+                    using (SqlCommand command = new SqlCommand(sql, connection))
+                    {
+                        connection.Open();
+                        SqlDataReader rd = command.ExecuteReader();
+                    }
+                }
+            }
+            catch (SqlException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+        }
+
+        // Delete existing user;
+        [NonAction]
+        public void DeleteExistingUser(Models.User user, int eventCode)
+        {
+            try
+            {
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
+                builder.DataSource = "luckydrawapplication20200108092548dbserver.database.windows.net";
+                builder.UserID = "sqladmin";
+                builder.Password = "luckywheel123@";
+                builder.InitialCatalog = "luckywheeldb";
+
+                using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.Append("DELETE FROM users WHERE PurchaserID = " + user.PurchaserID);
                     String sql = sb.ToString();
 
                     using (SqlCommand command = new SqlCommand(sql, connection))
@@ -1240,10 +1412,19 @@ namespace LuckyDrawApplication.Controllers
                     Console.WriteLine(e.ToString());
                 }
 
-                UpdateDatabaseAfterStaffWon(user, orderNo, prizeAmount);
+                if(prizeAmount != 0)
+                {
+                    UpdateDatabaseAfterStaffWon(user, orderNo, prizeAmount);
+                    return new Tuple<String, int>(user.SalesConsultant, prizeAmount);
+                }
+                else
+                {
+                    return new Tuple<String, int>(user.SalesConsultant, 0);
+                }
+
             }
 
-            return new Tuple<String, int>(user.SalesConsultant, prizeAmount);
+            return new Tuple<String, int>("", prizeAmount);
         }
 
         // Modify existing user;

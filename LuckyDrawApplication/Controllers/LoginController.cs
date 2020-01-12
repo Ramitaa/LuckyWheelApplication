@@ -106,9 +106,7 @@ namespace LuckyDrawApplication.Controllers
                         {
                             while (rd.Read())
                             {
-                                var hash = createPasswordHash(rd["EventSalt"].ToString(), password);
-
-                                if (hash.Equals(rd["EventPassword"].ToString()))
+                                if (password.Equals(rd["EventPassword"].ToString()))
                                 {
                                     eventID = Convert.ToInt32(rd["EventID"]);
                                     eventLocation = rd["EventLocation"].ToString();
@@ -126,18 +124,6 @@ namespace LuckyDrawApplication.Controllers
             }
 
             return new Tuple<bool, int, string>(isPasswordMatch, eventID, eventLocation);
-        }
-
-        [NonAction]
-        public static string createPasswordHash(string salt_c, string password)
-        {
-            int PASSWORD_BCRYPT_COST = 13;
-            string PASSWORD_SALT = salt_c;
-            string salt = "$2a$" + PASSWORD_BCRYPT_COST + "$" + PASSWORD_SALT;
-            var hash = BCrypt.Net.BCrypt.HashPassword(password, salt);
-
-            Debug.WriteLine("Salt_c: " + salt_c, "Hash: " + hash);
-            return hash;
         }
 
         [NonAction]
@@ -291,9 +277,7 @@ namespace LuckyDrawApplication.Controllers
                         {
                             while (rd.Read())
                             {
-                                var hash = createPasswordHash(rd["salt"].ToString(), password);
-
-                                if (hash.Equals(rd["passwordHash"].ToString()))
+                                if (password.Equals(rd["passwordHash"].ToString()))
                                 {
                                     UserID = Convert.ToInt32(rd["userID"]);
                                     name = rd["adminname"].ToString();
@@ -571,9 +555,6 @@ namespace LuckyDrawApplication.Controllers
 
             if (tokenMatches)
             {
-                string salt = getSalt();
-                string passwordHash = createPasswordHash(salt, resetPassword.NewPassword);
-
                 try
                 {
                     SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder();
@@ -585,7 +566,7 @@ namespace LuckyDrawApplication.Controllers
                     using (SqlConnection connection = new SqlConnection(builder.ConnectionString))
                     {
                         StringBuilder sb = new StringBuilder();
-                        sb.Append("UPDATE adminlogin SET passwordHash = '" + passwordHash + "', salt = '" + salt + "' WHERE emailAddress = '" + resetPassword.EmailAddress + "'");
+                        sb.Append("UPDATE adminlogin SET passwordHash = '" + resetPassword.NewPassword + "' WHERE emailAddress = '" + resetPassword.EmailAddress + "'");
                         String sql = sb.ToString();
 
                         using (SqlCommand command = new SqlCommand(sql, connection))

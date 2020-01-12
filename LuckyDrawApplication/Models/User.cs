@@ -55,7 +55,7 @@ namespace LuckyDrawApplication.Models {
         [CustomValidationAlpha]
         [MinLength(3, ErrorMessage = "Minumum length of 3")]
         [MaxLength(50, ErrorMessage = "Maximum length of 50")]
-        [Display(Name = "Sales Consultant")]
+        [Display(Name = "Sales Agent")]
         public string SalesConsultant { get; set; }
 
         [CustomValidationAlpha]
